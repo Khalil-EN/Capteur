@@ -1,54 +1,52 @@
 import RPi.GPIO as GPIO
 import time
 
-# Set GPIO pin numbers
-ultrasonic_trigger = 23
-ultrasonic_echo = 24
-buzzer_pin = 25
+# GPIO pin numbers for the ultrasonic sensor
+TRIG_PIN = 14
+ECHO_PIN = 15
 
-# Set GPIO mode and warnings
-GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
+# GPIO pin number for the piezo buzzer
+BUZZER_PIN = 16
 
-# Set up ultrasonic sensor pins
-GPIO.setup(ultrasonic_trigger, GPIO.OUT)
-GPIO.setup(ultrasonic_echo, GPIO.IN)
+# Threshold distance in centimeters
+THRESHOLD_DISTANCE_CM = 20
 
-# Set up buzzer pin
-GPIO.setup(buzzer_pin, GPIO.OUT)
-
-def distance():
-    # Send a 10us pulse to trigger
-    GPIO.output(ultrasonic_trigger, True)
+def get_distance():
+    GPIO.output(TRIG_PIN, GPIO.HIGH)
     time.sleep(0.00001)
-    GPIO.output(ultrasonic_trigger, False)
+    GPIO.output(TRIG_PIN, GPIO.LOW)
 
-    # Measure the time it takes for the echo to go high
-    start_time = time.time()
-    while GPIO.input(ultrasonic_echo) == 0:
-        start_time = time.time()
+    while GPIO.input(ECHO_PIN) == 0:
+        pulse_start = time.time()
 
-    # Measure the time it takes for the echo to go low
-    while GPIO.input(ultrasonic_echo) == 1:
-        stop_time = time.time()
+    while GPIO.input(ECHO_PIN) == 1:
+        pulse_end = time.time()
 
-    # Calculate distance in centimeters
-    elapsed_time = stop_time - start_time
-    distance = (elapsed_time * 34300) / 2
+    pulse_duration = pulse_end - pulse_start
+    speed_of_sound = 34300  # Speed of sound in cm/s
+    distance = (pulse_duration * speed_of_sound) / 2
     return distance
+
+
+GPIO.setmode(GPIO.BCM)
+
+GPIO.setup(TRIG_PIN, GPIO.OUT)
+GPIO.setup(ECHO_PIN, GPIO.IN)
+GPIO.setup(BUZZER_PIN, GPIO.OUT)
+
+GPIO.output(TRIG_PIN, GPIO.LOW)
+GPIO.output(BUZZER_PIN, GPIO.LOW)
+
 
 try:
     while True:
-        dist = distance()
-        print("Distance:", dist, "cm")
+        distance = get_distance()
+        print(f"Distance: {distance:.2f} cm")
 
-        # Check if distance is below 1.5m (150 cm)
-        if dist < 150:
-            GPIO.output(buzzer_pin, GPIO.HIGH) # Turn on buzzer
+        if distance < THRESHOLD_DISTANCE_CM:
+            GPIO.output(BUZZER_PIN, GPIO.HIGH)  # Turn the buzzer on
         else:
-            GPIO.output(buzzer_pin, GPIO.LOW) # Turn off buzzer
-
-        time.sleep(0.5)
+            GPIO.output(BUZZER_PIN, GPIO.LOW)   # Turn the buzzer off
 
 except KeyboardInterrupt:
     GPIO.cleanup()
